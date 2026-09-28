@@ -6,11 +6,11 @@ on:
         description: 'Project name'
         required: true
         type: string
-      project:
+      component:
         description: 'Component name'
         required: true
         type: string
-      project:
+      environment:
         description: 'Environment name'
         required: true
         type: string
