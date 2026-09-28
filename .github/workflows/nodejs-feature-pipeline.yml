@@ -1,0 +1,25 @@
+name: nodejs-feature-branch-workflow
+on: 
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project name'
+        required: true
+        type: string
+      project:
+        description: 'Component name'
+        required: true
+        type: string
+      project:
+        description: 'Environment name'
+        required: true
+        type: string
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout or clone code
+        uses: actions/checkout@v6
+
+      - name: list the files
+        run: ls -l
