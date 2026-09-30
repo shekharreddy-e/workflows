@@ -57,6 +57,15 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }} 
 
+      # - name: Update status — sonar-scan
+      #   #if: always()
+      #   uses: .github/actions/update-commit-status@main
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     context: sonar-scan
+      #     state: ${{ steps.sonar_gate.outcome }}
+      #     description: SonarQube quality gate ${{ steps.sonar_gate.outcome }}
+
       - name: Check Dependabot Alerts
         id: library_scan
         uses: Posture-Cybersecurity/dependabot-security-checker@v1.1.5
@@ -96,3 +105,17 @@ jobs:
         id: push_image
         run: |
           docker push  ${acc_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${component}:${APP_VERSION}
+
+      - name: Slack alert
+        if: always()
+        uses: slackapi/slack-github-action@v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ inputs.project }}/${{ inputs.component }}* feature pipeline *${{ job.status }}*"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ inputs.project }}/${{ inputs.component }}* feature pipeline: *${{ job.status }}*\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}`\n*<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>*"
