@@ -85,9 +85,9 @@ jobs:
         id: trivy_scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          scan-type: 'fs'
-          ignore-unfixed: true
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL'
-          skip-setup-trivy: true
+          image-ref: ${{ env.acc_id }}.dkr.ecr.us-east-1.amazonaws.com/${{ env. project }}/${{ env.component }}:${{ env.APP_VERSION }}
+          scan-type: 'image'
+          vuln-type: os
+          format: 'table'
+          exit-code: 1
+          severity: 'CRITICAL,HIGH'
