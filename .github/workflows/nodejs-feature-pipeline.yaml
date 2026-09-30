@@ -70,8 +70,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           context: sonar-scan
-          state: ${{ steps.sonar_gate.outcome }}
-          description: SonarQube quality gate ${{ steps.sonar_gate.outcome }}
+          state: ${{ steps.sonar_scan.outcome }}
+          description: SonarQube quality gate ${{ steps.sonar_scan.outcome }}
 
       - name: Check Dependabot Alerts
         id: library_scan
