@@ -20,5 +20,11 @@ jobs:
       - name: checkout or clone code
         uses: actions/checkout@v6
 
-      - name: list the files
-        run: ls -la
+      - name: Read package.json version
+        id: package-version
+        run: |
+          APP_VERSION=$(jq -r '.version' package.json)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          
+      - name: check app version
+        run: echo "$APP_VERSION"
