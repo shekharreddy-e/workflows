@@ -80,3 +80,14 @@ jobs:
       - name: Build Image 
         id: build_image
         run: docker build -t  ${acc_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${component}:${APP_VERSION} .
+
+      - name: tivy scan
+        id: trivy_scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL'
+          skip-setup-trivy: true
