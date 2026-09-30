@@ -12,13 +12,10 @@ on:
         description: 'Component name'
         required: true
         type: string
-      environment:
-        description: 'Environment name'
-        required: true
-        type: string
+     
 jobs:
   trigger:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: checkout or clone code
         uses: actions/checkout@v6
