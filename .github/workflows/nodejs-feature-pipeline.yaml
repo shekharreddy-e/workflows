@@ -40,6 +40,13 @@ jobs:
         id: unit_tests
         run: npm test
 
+      - name: Update status — unit-tests
+        uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          context: unit-tests
+          state: ${{ steps.unit_tests.outcome }}
+          description: Unit tests ${{ steps.unit_tests.outcome }}
 
       - name: sonar scan
         id: sonar_scan
@@ -57,14 +64,14 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }} 
 
-      # - name: Update status — sonar-scan
-      #   #if: always()
-      #   uses: .github/actions/update-commit-status@main
-      #   with:
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     context: sonar-scan
-      #     state: ${{ steps.sonar_gate.outcome }}
-      #     description: SonarQube quality gate ${{ steps.sonar_gate.outcome }}
+      - name: Update status — sonar-scan
+        #if: always()
+        uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          context: sonar-scan
+          state: ${{ steps.sonar_gate.outcome }}
+          description: SonarQube quality gate ${{ steps.sonar_gate.outcome }}
 
       - name: Check Dependabot Alerts
         id: library_scan
@@ -74,6 +81,15 @@ jobs:
           severities: 'critical,high' 
           output-file: 'security-report.csv'
           fail-on-alerts: 'true'  
+
+      - name: Update status — library-scan
+        uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          context: library-scan
+          state: ${{ steps.library_scan.outcome }}
+          description: library-scan ${{ steps.library_scan.outcome }}
+
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
@@ -101,10 +117,26 @@ jobs:
           exit-code: 1
           severity: 'CRITICAL,HIGH'
       
+      - name: Update status — trivy-scan
+        uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          context: trivy-scan
+          state: ${{ steps.trivy_scan.outcome }}
+          description: trivy-scan ${{ steps.trivy_scan.outcome }}
+      
       - name: push image
         id: push_image
         run: |
           docker push  ${acc_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${component}:${APP_VERSION}
+
+      - name: Update status — push-image
+        uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          context: push-image
+          state: ${{ steps.push_image.outcome }}
+          description: push-image ${{ steps.push_image.outcome }}
 
       - name: Slack alert
         if: always()

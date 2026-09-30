@@ -1,0 +1,224 @@
+name: eks-main-pipeline
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+      component:
+        required: true
+        type: string
+      deploy_to:
+        required: false
+        type: string
+        default: 'dev'
+      version:
+        required: false
+        type: string
+        default: ''
+      jira_key:
+        required: false
+        type: string
+        default: ''
+      cr_number:
+        required: false
+        type: string
+        default: ''
+
+# Needed to push imageVersion commits to the protected main branch.
+# In repo settings → Branches → branch protection rule → Bypass list,
+# add "GitHub Actions" as a bypass actor for each environment rule.
+permissions:
+  contents: write
+
+env:
+  ACC_ID: "764694154057"
+  REGION: us-east-1
+  CLUSTER: roboshop-dev
+
+jobs:
+  eks-main-pipeline:
+    runs-on: self-hosted
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.REGION }}
+
+    # ── DEV ────────────────────────────────────────────────────────────
+
+    - name: Read version
+      if: inputs.deploy_to == 'dev'
+      run: |
+        if [ -f package.json ]; then
+          APP_VERSION=$(jq -r .version package.json)
+        elif [ -f pom.xml ]; then
+          APP_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+        elif [ -f version.txt ]; then
+          APP_VERSION=$(cat version.txt)
+        else
+          echo "::error::Cannot detect language — no package.json, pom.xml, or version.txt found"
+          exit 1
+        fi
+        SHORT_COMMIT=${GITHUB_SHA::7}
+        echo "APP_VERSION=$APP_VERSION"   >> $GITHUB_ENV
+        echo "SHORT_COMMIT=$SHORT_COMMIT" >> $GITHUB_ENV
+
+    - name: Login to ECR
+      if: inputs.deploy_to == 'dev'
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Promote image
+      if: inputs.deploy_to == 'dev'
+      run: |
+        docker pull ${{ env.ACC_ID }}.dkr.ecr.${{ env.REGION }}.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${{ env.APP_VERSION }}
+        docker tag  ${{ env.ACC_ID }}.dkr.ecr.${{ env.REGION }}.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${{ env.APP_VERSION }} \
+                    ${{ env.ACC_ID }}.dkr.ecr.${{ env.REGION }}.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${{ env.SHORT_COMMIT }}
+        docker push ${{ env.ACC_ID }}.dkr.ecr.${{ env.REGION }}.amazonaws.com/${{ inputs.project }}/${{ inputs.component }}:${{ env.SHORT_COMMIT }}
+
+    # ── ArgoCD deploy: update imageVersion in values-dev.yaml and push to main.
+    # ── ArgoCD watches this repo and syncs the change to the cluster automatically.
+    - name: Deploy to DEV
+      if: inputs.deploy_to == 'dev'
+      run: |
+        git config user.email "github-actions@github.com"
+        git config user.name  "GitHub Actions"
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        sed -i 's/imageVersion:.*/imageVersion: "${{ env.SHORT_COMMIT }}"/' helm/values-dev.yaml
+        git add helm/values-dev.yaml
+        git commit -m "deploy(${{ inputs.component }}): update DEV imageVersion to ${{ env.SHORT_COMMIT }}"
+        git push origin main
+
+    # Previous Helm-direct deploy (kept for reference):
+    # - name: Deploy to DEV
+    #   if: inputs.deploy_to == 'dev'
+    #   run: |
+    #     aws eks update-kubeconfig --region ${{ env.REGION }} --name ${{ env.CLUSTER }}
+    #     cd helm
+    #     sed -i "s/IMAGE_VERSION/${{ env.SHORT_COMMIT }}/g" values.yaml
+    #     helm upgrade --install ${{ inputs.component }} -f values-dev.yaml -n ${{ inputs.project }}-dev --atomic --wait --timeout=5m .
+
+    # - name: Functional tests
+    #   if: inputs.deploy_to == 'dev'
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     gh workflow run tests.yaml \
+    #       --repo ${{ github.repository_owner }}/${{ inputs.component }}-tests \
+    #       --ref main
+
+    - name: Login to Jira
+      if: inputs.deploy_to == 'dev' || inputs.deploy_to == 'prod'
+      uses: atlassian/gajira-login@v3
+      env:
+        JIRA_BASE_URL: ${{ vars.JIRA_URL }}
+        JIRA_USER_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
+
+    - name: Create Jira ticket
+      if: inputs.deploy_to == 'dev'
+      uses: atlassian/gajira-create@v3
+      with:
+        project: ${{ vars.JIRA_PROJECT }}
+        issuetype: Story
+        summary: "${{ inputs.component }} ${{ env.APP_VERSION }} (${{ env.SHORT_COMMIT }}) ready for UAT"
+        description: "component: ${{ inputs.component }} | version: ${{ env.APP_VERSION }} | commit: ${{ env.SHORT_COMMIT }} | project: ${{ inputs.project }} | organisation: daws-88s"
+        fields: '{"labels": ["${{ env.SHORT_COMMIT }}"], "components": [{"name": "${{ inputs.component }}"}], "customfield_10071": ""}'
+
+    # ── UAT ────────────────────────────────────────────────────────────
+
+    # ── ArgoCD deploy: update imageVersion in values-uat.yaml and push to main.
+    - name: Deploy to UAT
+      if: inputs.deploy_to == 'uat'
+      run: |
+        git config user.email "github-actions@github.com"
+        git config user.name  "GitHub Actions"
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-uat.yaml
+        git add helm/values-uat.yaml
+        git commit -m "deploy(${{ inputs.component }}): update UAT imageVersion to ${{ inputs.version }}"
+        git push origin main
+
+    # Previous Helm-direct deploy (kept for reference):
+    # - name: Checkout version for UAT
+    #   if: inputs.deploy_to == 'uat'
+    #   run: git checkout ${{ inputs.version }}
+    #
+    # - name: Deploy to UAT
+    #   if: inputs.deploy_to == 'uat'
+    #   run: |
+    #     aws eks update-kubeconfig --region ${{ env.REGION }} --name ${{ env.CLUSTER }}
+    #     cd helm
+    #     sed -i "s/IMAGE_VERSION/${{ inputs.version }}/g" values.yaml
+    #     helm upgrade --install ${{ inputs.component }} -f values-uat.yaml -n ${{ inputs.project }}-uat --atomic --wait --timeout=5m .
+
+    # ── PROD ───────────────────────────────────────────────────────────
+
+    - name: Validate change request
+      if: inputs.deploy_to == 'prod'
+      run: |
+        if [ -z "${{ inputs.cr_number }}" ]; then
+          echo "::error::CR number is required for PROD deploy."
+          exit 1
+        fi
+        # TODO: replace with real CR tool API call (ServiceNow, Remedy, etc.)
+        CR_STATUS="approved"
+        IN_WINDOW="true"
+        if [ "$CR_STATUS" != "approved" ]; then
+          echo "::error::CR ${{ inputs.cr_number }} is not approved."
+          exit 1
+        fi
+        echo "CR ${{ inputs.cr_number }} validated — status: $CR_STATUS"
+
+    # ── ArgoCD deploy: update imageVersion in values-prod.yaml and push to main.
+    - name: Deploy to PROD
+      if: inputs.deploy_to == 'prod'
+      run: |
+        git config user.email "github-actions@github.com"
+        git config user.name  "GitHub Actions"
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-prod.yaml
+        git add helm/values-prod.yaml
+        git commit -m "deploy(${{ inputs.component }}): update PROD imageVersion to ${{ inputs.version }}"
+        git push origin main
+
+    # Previous Helm-direct deploy (kept for reference):
+    # - name: Checkout version for PROD
+    #   if: inputs.deploy_to == 'prod'
+    #   run: git checkout ${{ inputs.version }}
+    #
+    # - name: Deploy to PROD
+    #   if: inputs.deploy_to == 'prod'
+    #   run: |
+    #     aws eks update-kubeconfig --region ${{ env.REGION }} --name ${{ env.CLUSTER }}
+    #     cd helm
+    #     sed -i "s/IMAGE_VERSION/${{ inputs.version }}/g" values.yaml
+    #     helm upgrade --install ${{ inputs.component }} -f values-prod.yaml -n ${{ inputs.project }}-prod --atomic --wait --timeout=5m .
+
+    - name: Git tag
+      if: inputs.deploy_to == 'prod'
+      run: |
+        if git show ${{ inputs.version }}:package.json > /dev/null 2>&1; then
+          APP_VERSION=$(git show ${{ inputs.version }}:package.json | jq -r .version)
+        elif git show ${{ inputs.version }}:pom.xml > /dev/null 2>&1; then
+          APP_VERSION=$(git show ${{ inputs.version }}:pom.xml | grep -m1 '<version>' | sed 's|.*<version>\(.*\)</version>.*|\1|')
+        elif git show ${{ inputs.version }}:version.txt > /dev/null 2>&1; then
+          APP_VERSION=$(git show ${{ inputs.version }}:version.txt)
+        fi
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        git tag $APP_VERSION
+        git push origin $APP_VERSION
+
+    - name: Transition Jira to Done
+      if: inputs.deploy_to == 'prod' && inputs.jira_key != ''
+      uses: atlassian/gajira-transition@v3
+      with:
+        issue: ${{ inputs.jira_key }}
+        transition: Done
