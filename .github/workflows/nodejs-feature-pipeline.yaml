@@ -65,7 +65,7 @@ jobs:
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }} 
 
       - name: Update status — sonar-scan
-        #if: always()
+        if: always()
         uses: .github/actions/update-commit-status@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
