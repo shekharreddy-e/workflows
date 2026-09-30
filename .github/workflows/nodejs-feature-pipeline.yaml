@@ -29,6 +29,9 @@ jobs:
       - name: check app version
         run: echo "$APP_VERSION"
 
+      - name: install dependencies
+        run: npm install
+
       - name: unit tests
         id: unit_tests
         run: npm test
