@@ -55,7 +55,7 @@ jobs:
 
       - name: Check Dependabot Alerts
         id: library_scan
-        uses: spicyparrot/check-dependabot@v1.2.0
+        uses: Posture-Cybersecurity/dependabot-security-checker@v1.1.5
         with:
           github_personal_token: ${{ secrets.DEPENDABOT_TOKEN }}  
           severities: 'critical,high' 
