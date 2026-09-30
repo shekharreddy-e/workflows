@@ -129,7 +129,7 @@ jobs:
         project: ${{ vars.JIRA_PROJECT }}
         issuetype: Story
         summary: "${{ inputs.component }} ${{ env.APP_VERSION }} (${{ env.SHORT_COMMIT }}) ready for UAT"
-        description: "component: ${{ inputs.component }} | version: ${{ env.APP_VERSION }} | commit: ${{ env.SHORT_COMMIT }} | project: ${{ inputs.project }} | organisation: daws-88s"
+        description: "component: ${{ inputs.component }} | version: ${{ env.APP_VERSION }} | commit: ${{ env.SHORT_COMMIT }} | project: ${{ inputs.project }} | organisation: shekharreddy-e"
         fields: '{"labels": ["${{ env.SHORT_COMMIT }}"], "components": [{"name": "${{ inputs.component }}"}], "customfield_10071": ""}'
 
     # ── UAT ────────────────────────────────────────────────────────────
