@@ -24,7 +24,10 @@ on:
         required: false
         type: string
         default: ''
-
+      language:            
+        required: false
+        type: string
+        default: ''
 # Needed to push imageVersion commits to the protected main branch.
 # In repo settings → Branches → branch protection rule → Bypass list,
 # add "GitHub Actions" as a bypass actor for each environment rule.
