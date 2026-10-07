@@ -96,8 +96,13 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ env.SHORT_COMMIT }}"/' helm/values-dev.yaml
         git add helm/values-dev.yaml
-        git commit -m "deploy(${{ inputs.component }}): update DEV imageVersion to ${{ env.SHORT_COMMIT }}"
-        git push origin main
+        if git diff --cached --quiet; then
+          echo "DEV already on ${{ env.SHORT_COMMIT }}, nothing to commit"
+        else
+          git commit -m "deploy(${{ inputs.component }}): update DEV imageVersion to ${{ env.SHORT_COMMIT }}"
+          git pull --rebase origin main
+          git push origin main
+        fi
 
     # Previous Helm-direct deploy (kept for reference):
     # - name: Deploy to DEV
@@ -117,23 +122,23 @@ jobs:
     #       --repo ${{ github.repository_owner }}/${{ inputs.component }}-tests \
     #       --ref main
 
-    - name: Login to Jira
-      if: inputs.deploy_to == 'dev' || inputs.deploy_to == 'prod'
-      uses: atlassian/gajira-login@v3
-      env:
-        JIRA_BASE_URL: ${{ vars.JIRA_URL }}
-        JIRA_USER_EMAIL: ${{ secrets.JIRA_EMAIL }}
-        JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
+    # - name: Login to Jira
+    #   if: inputs.deploy_to == 'dev' || inputs.deploy_to == 'prod'
+    #   uses: atlassian/gajira-login@v3
+    #   env:
+    #     JIRA_BASE_URL: ${{ vars.JIRA_URL }}
+    #     JIRA_USER_EMAIL: ${{ secrets.JIRA_EMAIL }}
+    #     JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
 
-    - name: Create Jira ticket
-      if: inputs.deploy_to == 'dev'
-      uses: atlassian/gajira-create@v3
-      with:
-        project: ${{ vars.JIRA_PROJECT }}
-        issuetype: Story
-        summary: "${{ inputs.component }} ${{ env.APP_VERSION }} (${{ env.SHORT_COMMIT }}) ready for UAT"
-        description: "component: ${{ inputs.component }} | version: ${{ env.APP_VERSION }} | commit: ${{ env.SHORT_COMMIT }} | project: ${{ inputs.project }} | organisation: shekharreddy-e"
-        fields: '{"labels": ["${{ env.SHORT_COMMIT }}"], "components": [{"name": "${{ inputs.component }}"}], "customfield_10071": ""}'
+    # - name: Create Jira ticket
+    #   if: inputs.deploy_to == 'dev'
+    #   uses: atlassian/gajira-create@v3
+    #   with:
+    #     project: ${{ vars.JIRA_PROJECT }}
+    #     issuetype: Story
+    #     summary: "${{ inputs.component }} ${{ env.APP_VERSION }} (${{ env.SHORT_COMMIT }}) ready for UAT"
+    #     description: "component: ${{ inputs.component }} | version: ${{ env.APP_VERSION }} | commit: ${{ env.SHORT_COMMIT }} | project: ${{ inputs.project }} | organisation: shekharreddy-e"
+    #     fields: '{"labels": ["${{ env.SHORT_COMMIT }}"], "components": [{"name": "${{ inputs.component }}"}], "customfield_10071": ""}'
 
     # ── UAT ────────────────────────────────────────────────────────────
 
@@ -146,8 +151,13 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-uat.yaml
         git add helm/values-uat.yaml
-        git commit -m "deploy(${{ inputs.component }}): update UAT imageVersion to ${{ inputs.version }}"
-        git push origin main
+        if git diff --cached --quiet; then
+          echo "UAT already on ${{ inputs.version }}, nothing to commit"
+        else
+          git commit -m "deploy(${{ inputs.component }}): update UAT imageVersion to ${{ inputs.version }}"
+          git pull --rebase origin main
+          git push origin main
+        fi
 
     # Previous Helm-direct deploy (kept for reference):
     # - name: Checkout version for UAT
@@ -189,8 +199,13 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-prod.yaml
         git add helm/values-prod.yaml
-        git commit -m "deploy(${{ inputs.component }}): update PROD imageVersion to ${{ inputs.version }}"
-        git push origin main
+        if git diff --cached --quiet; then
+          echo "PROD already on ${{ inputs.version }}, nothing to commit"
+        else
+          git commit -m "deploy(${{ inputs.component }}): update PROD imageVersion to ${{ inputs.version }}"
+          git pull --rebase origin main
+          git push origin main
+        fi
 
     # Previous Helm-direct deploy (kept for reference):
     # - name: Checkout version for PROD
