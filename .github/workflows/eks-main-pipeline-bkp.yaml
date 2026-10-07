@@ -96,13 +96,8 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ env.SHORT_COMMIT }}"/' helm/values-dev.yaml
         git add helm/values-dev.yaml
-        if git diff --cached --quiet; then
-          echo "DEV already on ${{ env.SHORT_COMMIT }}, nothing to commit"
-        else
-          git commit -m "deploy(${{ inputs.component }}): update DEV imageVersion to ${{ env.SHORT_COMMIT }}"
-          git pull --rebase origin main
-          git push origin main
-        fi
+        git commit -m "deploy(${{ inputs.component }}): update DEV imageVersion to ${{ env.SHORT_COMMIT }}"
+        git push origin main
 
     # Previous Helm-direct deploy (kept for reference):
     # - name: Deploy to DEV
@@ -151,13 +146,8 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-uat.yaml
         git add helm/values-uat.yaml
-        if git diff --cached --quiet; then
-          echo "UAT already on ${{ inputs.version }}, nothing to commit"
-        else
-          git commit -m "deploy(${{ inputs.component }}): update UAT imageVersion to ${{ inputs.version }}"
-          git pull --rebase origin main
-          git push origin main
-        fi
+        git commit -m "deploy(${{ inputs.component }}): update UAT imageVersion to ${{ inputs.version }}"
+        git push origin main
 
     # Previous Helm-direct deploy (kept for reference):
     # - name: Checkout version for UAT
@@ -199,13 +189,8 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-prod.yaml
         git add helm/values-prod.yaml
-        if git diff --cached --quiet; then
-          echo "PROD already on ${{ inputs.version }}, nothing to commit"
-        else
-          git commit -m "deploy(${{ inputs.component }}): update PROD imageVersion to ${{ inputs.version }}"
-          git pull --rebase origin main
-          git push origin main
-        fi
+        git commit -m "deploy(${{ inputs.component }}): update PROD imageVersion to ${{ inputs.version }}"
+        git push origin main
 
     # Previous Helm-direct deploy (kept for reference):
     # - name: Checkout version for PROD
