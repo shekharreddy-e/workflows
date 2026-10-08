@@ -39,7 +39,7 @@ jobs:
       if: always()
       uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.ADMIN_GITHUB_TOKEN }}
         context: unit-tests
         state: ${{ steps.unit_tests.outcome }}
         description: Unit tests ${{ steps.unit_tests.outcome }}
@@ -62,7 +62,7 @@ jobs:
     #   if: always()
     #   uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
     #   with:
-    #     token: ${{ secrets.GITHUB_TOKEN }}
+    #     token: ${{ secrets.ADMIN_GITHUB_TOKEN }}
     #     context: sonar-scan
     #     state: ${{ steps.sonar_gate.outcome }}
     #     description: SonarQube quality gate ${{ steps.sonar_gate.outcome }}
@@ -79,7 +79,7 @@ jobs:
       if: always()
       uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.ADMIN_GITHUB_TOKEN }}
         context: library-scan
         state: ${{ steps.library_scan.outcome }}
         description: Dependabot security check ${{ steps.library_scan.outcome }}
@@ -132,7 +132,7 @@ jobs:
       if: always()
       uses: shekharreddy-e/workflows/.github/actions/update-commit-status@main
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.ADMIN_GITHUB_TOKEN }}
         context: push-image
         state: ${{ steps.push_image.outcome }}
         description: Push image ${{ steps.push_image.outcome }}
