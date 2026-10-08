@@ -43,10 +43,21 @@ jobs:
   eks-main-pipeline:
     runs-on: self-hosted
     steps:
+    # Short-lived token from the shekhar-deploy-bot GitHub App. The app is on the ruleset
+    # bypass list, so it can push to main (GITHUB_TOKEN cannot).
+    - name: Generate app token
+      id: app-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ vars.DEPLOY_APP_ID }}
+        private-key: ${{ secrets.DEPLOY_APP_KEY }}
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        # Checkout stores this token for later git commands, so pushes use the app token too.
+        token: ${{ steps.app-token.outputs.token }}
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -93,7 +104,7 @@ jobs:
       run: |
         git config user.email "github-actions@github.com"
         git config user.name  "GitHub Actions"
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        git remote set-url origin https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ env.SHORT_COMMIT }}"/' helm/values-dev.yaml
         git add helm/values-dev.yaml
         # Skip the commit if the file already has this version (re-runs are safe).
@@ -164,7 +175,7 @@ jobs:
       run: |
         git config user.email "github-actions@github.com"
         git config user.name  "GitHub Actions"
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        git remote set-url origin https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-uat.yaml
         git add helm/values-uat.yaml
         # Skip the commit if the file already has this version (re-runs are safe).
@@ -228,7 +239,7 @@ jobs:
       run: |
         git config user.email "github-actions@github.com"
         git config user.name  "GitHub Actions"
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        git remote set-url origin https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-prod.yaml
         git add helm/values-prod.yaml
         # Skip the commit if the file already has this version (re-runs are safe).
@@ -283,7 +294,7 @@ jobs:
           echo "::error::Could not determine APP_VERSION from ${{ inputs.version }}"
           exit 1
         fi
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+        git remote set-url origin https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/${{ github.repository }}
         # Skip tagging if the tag already exists (local or remote), so re-runs don't fail.
         if git rev-parse -q --verify "refs/tags/$APP_VERSION" > /dev/null \
            || git ls-remote --exit-code --tags origin "refs/tags/$APP_VERSION" > /dev/null 2>&1; then
