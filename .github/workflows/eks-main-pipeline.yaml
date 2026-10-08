@@ -96,12 +96,28 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ env.SHORT_COMMIT }}"/' helm/values-dev.yaml
         git add helm/values-dev.yaml
+        # Skip the commit if the file already has this version (re-runs are safe).
         if git diff --cached --quiet; then
           echo "DEV already on ${{ env.SHORT_COMMIT }}, nothing to commit"
         else
           git commit -m "deploy(${{ inputs.component }}): update DEV imageVersion to ${{ env.SHORT_COMMIT }}"
-          git pull --rebase origin main
-          git push origin main
+          # Retry rebase+push up to 3 times in case another run pushes to main at the same moment.
+          PUSHED=false
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push origin main; then
+              PUSHED=true
+              break
+            fi
+            echo "Push attempt $i failed, retrying..."
+            # Clean up a half-finished rebase (if any) before the next attempt.
+            git rebase --abort 2>/dev/null || true
+            sleep $((i * 3))
+          done
+          # Fail the step only if all attempts were exhausted.
+          if [ "$PUSHED" != "true" ]; then
+            echo "::error::Could not push DEV imageVersion update after 3 attempts"
+            exit 1
+          fi
         fi
 
     # Previous Helm-direct deploy (kept for reference):
@@ -122,23 +138,23 @@ jobs:
     #       --repo ${{ github.repository_owner }}/${{ inputs.component }}-tests \
     #       --ref main
 
-    # - name: Login to Jira
-    #   if: inputs.deploy_to == 'dev' || inputs.deploy_to == 'prod'
-    #   uses: atlassian/gajira-login@v3
-    #   env:
-    #     JIRA_BASE_URL: ${{ vars.JIRA_URL }}
-    #     JIRA_USER_EMAIL: ${{ secrets.JIRA_EMAIL }}
-    #     JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
+    - name: Login to Jira
+      if: inputs.deploy_to == 'dev' || inputs.deploy_to == 'prod'
+      uses: atlassian/gajira-login@v3
+      env:
+        JIRA_BASE_URL: ${{ vars.JIRA_URL }}
+        JIRA_USER_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_TOKEN }}
 
-    # - name: Create Jira ticket
-    #   if: inputs.deploy_to == 'dev'
-    #   uses: atlassian/gajira-create@v3
-    #   with:
-    #     project: ${{ vars.JIRA_PROJECT }}
-    #     issuetype: Story
-    #     summary: "${{ inputs.component }} ${{ env.APP_VERSION }} (${{ env.SHORT_COMMIT }}) ready for UAT"
-    #     description: "component: ${{ inputs.component }} | version: ${{ env.APP_VERSION }} | commit: ${{ env.SHORT_COMMIT }} | project: ${{ inputs.project }} | organisation: shekharreddy-e"
-    #     fields: '{"labels": ["${{ env.SHORT_COMMIT }}"], "components": [{"name": "${{ inputs.component }}"}], "customfield_10071": ""}'
+    - name: Create Jira ticket
+      if: inputs.deploy_to == 'dev'
+      uses: atlassian/gajira-create@v3
+      with:
+        project: ${{ vars.JIRA_PROJECT }}
+        issuetype: Story
+        summary: "${{ inputs.component }} ${{ env.APP_VERSION }} (${{ env.SHORT_COMMIT }}) ready for UAT"
+        description: "component: ${{ inputs.component }} | version: ${{ env.APP_VERSION }} | commit: ${{ env.SHORT_COMMIT }} | project: ${{ inputs.project }} | organisation: shekharreddy-e"
+        fields: '{"labels": ["${{ env.SHORT_COMMIT }}"], "components": [{"name": "${{ inputs.component }}"}], "customfield_10071": ""}'
 
     # ── UAT ────────────────────────────────────────────────────────────
 
@@ -151,12 +167,28 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-uat.yaml
         git add helm/values-uat.yaml
+        # Skip the commit if the file already has this version (re-runs are safe).
         if git diff --cached --quiet; then
           echo "UAT already on ${{ inputs.version }}, nothing to commit"
         else
           git commit -m "deploy(${{ inputs.component }}): update UAT imageVersion to ${{ inputs.version }}"
-          git pull --rebase origin main
-          git push origin main
+          # Retry rebase+push up to 3 times in case another run pushes to main at the same moment.
+          PUSHED=false
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push origin main; then
+              PUSHED=true
+              break
+            fi
+            echo "Push attempt $i failed, retrying..."
+            # Clean up a half-finished rebase (if any) before the next attempt.
+            git rebase --abort 2>/dev/null || true
+            sleep $((i * 3))
+          done
+          # Fail the step only if all attempts were exhausted.
+          if [ "$PUSHED" != "true" ]; then
+            echo "::error::Could not push UAT imageVersion update after 3 attempts"
+            exit 1
+          fi
         fi
 
     # Previous Helm-direct deploy (kept for reference):
@@ -199,12 +231,28 @@ jobs:
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
         sed -i 's/imageVersion:.*/imageVersion: "${{ inputs.version }}"/' helm/values-prod.yaml
         git add helm/values-prod.yaml
+        # Skip the commit if the file already has this version (re-runs are safe).
         if git diff --cached --quiet; then
           echo "PROD already on ${{ inputs.version }}, nothing to commit"
         else
           git commit -m "deploy(${{ inputs.component }}): update PROD imageVersion to ${{ inputs.version }}"
-          git pull --rebase origin main
-          git push origin main
+          # Retry rebase+push up to 3 times in case another run pushes to main at the same moment.
+          PUSHED=false
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push origin main; then
+              PUSHED=true
+              break
+            fi
+            echo "Push attempt $i failed, retrying..."
+            # Clean up a half-finished rebase (if any) before the next attempt.
+            git rebase --abort 2>/dev/null || true
+            sleep $((i * 3))
+          done
+          # Fail the step only if all attempts were exhausted.
+          if [ "$PUSHED" != "true" ]; then
+            echo "::error::Could not push PROD imageVersion update after 3 attempts"
+            exit 1
+          fi
         fi
 
     # Previous Helm-direct deploy (kept for reference):
@@ -230,9 +278,20 @@ jobs:
         elif git show ${{ inputs.version }}:version.txt > /dev/null 2>&1; then
           APP_VERSION=$(git show ${{ inputs.version }}:version.txt)
         fi
+        # Fail early if no version could be read, instead of pushing an empty tag.
+        if [ -z "$APP_VERSION" ]; then
+          echo "::error::Could not determine APP_VERSION from ${{ inputs.version }}"
+          exit 1
+        fi
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-        git tag $APP_VERSION
-        git push origin $APP_VERSION
+        # Skip tagging if the tag already exists (local or remote), so re-runs don't fail.
+        if git rev-parse -q --verify "refs/tags/$APP_VERSION" > /dev/null \
+           || git ls-remote --exit-code --tags origin "refs/tags/$APP_VERSION" > /dev/null 2>&1; then
+          echo "Tag $APP_VERSION already exists, skipping"
+        else
+          git tag $APP_VERSION
+          git push origin $APP_VERSION
+        fi
 
     - name: Transition Jira to Done
       if: inputs.deploy_to == 'prod' && inputs.jira_key != ''
